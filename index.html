@@ -1,0 +1,239 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>GraphX 3D | Interactive Math Visualizer</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Three.js OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="logo">
+            <span class="logo-icon">∿</span>
+            <div>
+                <h1>GraphX <span>3D</span></h1>
+                <p>Interactive Mathematics Visualizer</p>
+            </div>
+        </div>
+
+        <div class="status">
+            <span id="statusDot"></span>
+            <span id="statusText">Ready</span>
+        </div>
+    </header>
+
+
+    <main class="app">
+
+        <!-- CONTROL PANEL -->
+        <aside class="panel">
+
+            <section class="card">
+                <h2>🧮 Equation</h2>
+
+                <label for="equation">Enter a 3D equation</label>
+
+                <div class="input-box">
+                    <span>z =</span>
+                    <input
+                        type="text"
+                        id="equation"
+                        value="x^2 + y^2"
+                        placeholder="x^2 + y^2"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <p class="hint">
+                    Use <b>x</b> and <b>y</b> to calculate <b>z</b>.
+                </p>
+
+                <div class="examples">
+                    <button data-equation="x^2 + y^2">Paraboloid</button>
+                    <button data-equation="sin(x) * cos(y)">Wave</button>
+                    <button data-equation="x * y">Saddle</button>
+                    <button data-equation="sqrt(x^2 + y^2)">Cone</button>
+                    <button data-equation="sin(sqrt(x^2 + y^2))">Ripple</button>
+                </div>
+            </section>
+
+
+            <section class="card">
+                <h2>📐 Graph Range</h2>
+
+                <div class="range-row">
+                    <div>
+                        <label>X minimum</label>
+                        <input type="number" id="xmin" value="-5" step="0.5">
+                    </div>
+
+                    <div>
+                        <label>X maximum</label>
+                        <input type="number" id="xmax" value="5" step="0.5">
+                    </div>
+                </div>
+
+                <div class="range-row">
+                    <div>
+                        <label>Y minimum</label>
+                        <input type="number" id="ymin" value="-5" step="0.5">
+                    </div>
+
+                    <div>
+                        <label>Y maximum</label>
+                        <input type="number" id="ymax" value="5" step="0.5">
+                    </div>
+                </div>
+
+                <label for="resolution">
+                    Resolution
+                    <span id="resolutionValue">60</span>
+                </label>
+
+                <input
+                    type="range"
+                    id="resolution"
+                    min="20"
+                    max="120"
+                    value="60"
+                >
+            </section>
+
+
+            <section class="card">
+                <h2>⚡ Animation</h2>
+
+                <label for="speed">
+                    Drawing speed
+                    <span id="speedValue">1x</span>
+                </label>
+
+                <input
+                    type="range"
+                    id="speed"
+                    min="1"
+                    max="5"
+                    value="2"
+                >
+
+                <div class="button-grid">
+
+                    <button id="runBtn" class="primary">
+                        ▶ Run
+                    </button>
+
+                    <button id="pauseBtn">
+                        ⏸ Pause
+                    </button>
+
+                    <button id="resetBtn">
+                        ↻ Reset
+                    </button>
+
+                </div>
+            </section>
+
+
+            <section class="card stats-card">
+                <h2>📊 Live Data</h2>
+
+                <div class="stat">
+                    <span>Progress</span>
+                    <strong id="progressText">0%</strong>
+                </div>
+
+                <div class="progress-bar">
+                    <div id="progressFill"></div>
+                </div>
+
+                <div class="coordinates">
+
+                    <div>
+                        <span>X</span>
+                        <strong id="xValue">0.00</strong>
+                    </div>
+
+                    <div>
+                        <span>Y</span>
+                        <strong id="yValue">0.00</strong>
+                    </div>
+
+                    <div>
+                        <span>Z</span>
+                        <strong id="zValue">0.00</strong>
+                    </div>
+
+                </div>
+
+                <div class="stat">
+                    <span>Points</span>
+                    <strong id="pointsText">0</strong>
+                </div>
+            </section>
+
+
+            <section class="card help-card">
+                <h2>🖱 Controls</h2>
+
+                <p>🖱 <b>Drag</b> → Rotate</p>
+                <p>🔍 <b>Scroll</b> → Zoom</p>
+                <p>↔️ <b>Right drag</b> → Move</p>
+            </section>
+
+        </aside>
+
+
+        <!-- GRAPH -->
+        <section class="graph-container">
+
+            <div id="graph"></div>
+
+            <div class="graph-overlay">
+
+                <div class="equation-display">
+                    <span>Current equation</span>
+                    <strong id="displayEquation">
+                        z = x² + y²
+                    </strong>
+                </div>
+
+                <div class="axis-info">
+                    <span class="x-axis">X</span>
+                    <span class="y-axis">Y</span>
+                    <span class="z-axis">Z</span>
+                </div>
+
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+        <span>GraphX 3D</span>
+        <span>Open Source Mathematics Visualizer</span>
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
+```
