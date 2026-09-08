@@ -1,2 +1,3 @@
 # 3d_math_graph
-Have Fun
+
+Interactive 3D mathematical graphing tool that visualizes equations dynamically in real time.
