@@ -1,13 +1,6 @@
-```javascript
-/* =========================================================
-   GRAPHX 3D
-   Interactive 3D Mathematical Graph Visualizer
-========================================================= */
-
-
-/* =========================================================
-   DOM ELEMENTS
-========================================================= */
+// ============================================================
+// GRAPHX 3D - WORKING VERSION
+// ============================================================
 
 const graphContainer = document.getElementById("graph");
 
@@ -37,198 +30,258 @@ const zValue = document.getElementById("zValue");
 
 const pointsText = document.getElementById("pointsText");
 
-const displayEquation = document.getElementById("displayEquation");
+const displayEquation =
+    document.getElementById("displayEquation");
 
-const statusDot = document.getElementById("statusDot");
-const statusText = document.getElementById("statusText");
+const statusText =
+    document.getElementById("statusText");
 
-const errorMessage = document.getElementById("errorMessage");
+const statusDot =
+    document.getElementById("statusDot");
+
+const errorMessage =
+    document.getElementById("errorMessage");
 
 
-/* =========================================================
-   THREE.JS VARIABLES
-========================================================= */
+// ============================================================
+// THREE.JS VARIABLES
+// ============================================================
 
 let scene;
 let camera;
 let renderer;
 let controls;
 
-let surfaceGroup = null;
+let graphGroup = null;
 
-let axesGroup = null;
-let gridGroup = null;
+let compiledEquation = null;
 
-let animationId = null;
-
-let isRunning = false;
-let isPaused = false;
-let isFinished = false;
-
-
-/* =========================================================
-   GRAPH DATA
-========================================================= */
-
-let graphData = [];
+let graphRows = [];
 
 let currentRow = 0;
 
 let totalRows = 0;
 
-let currentPoint = 0;
-
 let totalPoints = 0;
 
-let compiledEquation = null;
+let generatedPoints = 0;
 
-let graphSettings = {};
+let running = false;
+
+let paused = false;
 
 
-/* =========================================================
-   INITIALIZE THREE.JS
-========================================================= */
+// ============================================================
+// INITIALIZE
+// ============================================================
 
-function initThree() {
+function init() {
+
+    console.log("GraphX 3D starting...");
+
+    if (typeof THREE === "undefined") {
+
+        showError(
+            "Three.js failed to load. Check your internet connection."
+        );
+
+        return;
+    }
+
+    if (typeof math === "undefined") {
+
+        showError(
+            "Math.js failed to load. Check your internet connection."
+        );
+
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // SCENE
+    // --------------------------------------------------------
 
     scene = new THREE.Scene();
 
-    scene.background = new THREE.Color(0x070b14);
+    scene.background =
+        new THREE.Color(0x070b14);
 
 
-    /* CAMERA */
+    // --------------------------------------------------------
+    // CAMERA
+    // --------------------------------------------------------
 
-    camera = new THREE.PerspectiveCamera(
-        50,
-        graphContainer.clientWidth /
+    camera =
+        new THREE.PerspectiveCamera(
+            45,
+            graphContainer.clientWidth /
             graphContainer.clientHeight,
-        0.1,
-        1000
-    );
+            0.1,
+            1000
+        );
+
 
     camera.position.set(
+        12,
         10,
-        9,
-        12
+        14
     );
 
 
-    /* RENDERER */
+    // --------------------------------------------------------
+    // RENDERER
+    // --------------------------------------------------------
 
-    renderer = new THREE.WebGLRenderer({
-        antialias: true
-    });
+    renderer =
+        new THREE.WebGLRenderer({
+            antialias: true
+        });
+
 
     renderer.setPixelRatio(
         Math.min(window.devicePixelRatio, 2)
     );
+
 
     renderer.setSize(
         graphContainer.clientWidth,
         graphContainer.clientHeight
     );
 
-    graphContainer.appendChild(renderer.domElement);
 
-
-    /* ORBIT CONTROLS */
-
-    controls = new THREE.OrbitControls(
-        camera,
+    graphContainer.appendChild(
         renderer.domElement
     );
 
-    controls.enableDamping = true;
 
-    controls.dampingFactor = 0.08;
+    // --------------------------------------------------------
+    // CONTROLS
+    // --------------------------------------------------------
 
-    controls.minDistance = 3;
+    if (typeof THREE.OrbitControls !== "undefined") {
 
-    controls.maxDistance = 60;
+        controls =
+            new THREE.OrbitControls(
+                camera,
+                renderer.domElement
+            );
 
-    controls.target.set(0, 0, 0);
+        controls.enableDamping = true;
+
+        controls.dampingFactor = 0.08;
+
+        controls.minDistance = 3;
+
+        controls.maxDistance = 100;
+
+        controls.target.set(
+            0,
+            0,
+            0
+        );
+    }
 
 
-    /* LIGHTING */
+    // --------------------------------------------------------
+    // LIGHTS
+    // --------------------------------------------------------
 
-    const ambientLight = new THREE.AmbientLight(
-        0xffffff,
-        0.7
-    );
-
-    scene.add(ambientLight);
-
-
-    const directionalLight =
-        new THREE.DirectionalLight(
+    const ambient =
+        new THREE.AmbientLight(
             0xffffff,
-            0.9
+            0.8
         );
 
-    directionalLight.position.set(
-        8,
-        15,
+    scene.add(ambient);
+
+
+    const directional =
+        new THREE.DirectionalLight(
+            0xffffff,
+            1
+        );
+
+    directional.position.set(
+        10,
+        20,
         10
     );
 
-    scene.add(directionalLight);
+    scene.add(directional);
 
 
-    /* AXES */
+    // --------------------------------------------------------
+    // AXES
+    // --------------------------------------------------------
 
     createAxes();
 
-    /* GRID */
+
+    // --------------------------------------------------------
+    // GRID
+    // --------------------------------------------------------
 
     createGrid();
 
 
-    /* RESIZE */
+    // --------------------------------------------------------
+    // RESIZE
+    // --------------------------------------------------------
 
     window.addEventListener(
         "resize",
-        resizeRenderer
+        resize
     );
 
 
-    animate();
+    // --------------------------------------------------------
+    // START RENDER LOOP
+    // --------------------------------------------------------
+
+    render();
+
+
+    console.log(
+        "GraphX 3D initialized successfully."
+    );
 
 }
 
 
-/* =========================================================
-   CREATE AXES
-========================================================= */
+// ============================================================
+// AXES
+// ============================================================
 
 function createAxes() {
-
-    axesGroup = new THREE.Group();
-
 
     const axisLength = 10;
 
 
-    /* X AXIS */
+    // X AXIS - RED
 
     const xMaterial =
         new THREE.LineBasicMaterial({
-            color: 0xff5555
+            color: 0xff4444
         });
 
-    const xGeometry =
-        new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(
-                -axisLength,
-                0,
-                0
-            ),
 
-            new THREE.Vector3(
-                axisLength,
-                0,
-                0
-            )
-        ]);
+    const xGeometry =
+        new THREE.BufferGeometry()
+            .setFromPoints([
+                new THREE.Vector3(
+                    -axisLength,
+                    0,
+                    0
+                ),
+
+                new THREE.Vector3(
+                    axisLength,
+                    0,
+                    0
+                )
+            ]);
+
 
     const xAxis =
         new THREE.Line(
@@ -236,30 +289,34 @@ function createAxes() {
             xMaterial
         );
 
-    axesGroup.add(xAxis);
+
+    scene.add(xAxis);
 
 
-    /* Y AXIS */
+    // Y AXIS - BLUE
 
     const yMaterial =
         new THREE.LineBasicMaterial({
-            color: 0x55ddff
+            color: 0x44ccff
         });
 
-    const yGeometry =
-        new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(
-                0,
-                0,
-                -axisLength
-            ),
 
-            new THREE.Vector3(
-                0,
-                0,
-                axisLength
-            )
-        ]);
+    const yGeometry =
+        new THREE.BufferGeometry()
+            .setFromPoints([
+                new THREE.Vector3(
+                    0,
+                    0,
+                    -axisLength
+                ),
+
+                new THREE.Vector3(
+                    0,
+                    0,
+                    axisLength
+                )
+            ]);
+
 
     const yAxis =
         new THREE.Line(
@@ -267,30 +324,34 @@ function createAxes() {
             yMaterial
         );
 
-    axesGroup.add(yAxis);
+
+    scene.add(yAxis);
 
 
-    /* Z AXIS */
+    // Z AXIS - GREEN
 
     const zMaterial =
         new THREE.LineBasicMaterial({
-            color: 0x66ee88
+            color: 0x55ee88
         });
 
-    const zGeometry =
-        new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(
-                0,
-                -axisLength,
-                0
-            ),
 
-            new THREE.Vector3(
-                0,
-                axisLength,
-                0
-            )
-        ]);
+    const zGeometry =
+        new THREE.BufferGeometry()
+            .setFromPoints([
+                new THREE.Vector3(
+                    0,
+                    -axisLength,
+                    0
+                ),
+
+                new THREE.Vector3(
+                    0,
+                    axisLength,
+                    0
+                )
+            ]);
+
 
     const zAxis =
         new THREE.Line(
@@ -298,101 +359,89 @@ function createAxes() {
             zMaterial
         );
 
-    axesGroup.add(zAxis);
 
+    scene.add(zAxis);
 
-    scene.add(axesGroup);
 }
 
 
-/* =========================================================
-   CREATE GRID
-========================================================= */
+// ============================================================
+// GRID
+// ============================================================
 
 function createGrid() {
 
-    gridGroup = new THREE.Group();
+    const grid =
+        new THREE.GridHelper(
+            20,
+            20,
+            0x557799,
+            0x223044
+        );
 
 
-    const size = 20;
+    scene.add(grid);
 
-    const divisions = 20;
-
-
-    const grid = new THREE.GridHelper(
-        size,
-        divisions,
-        0x33445d,
-        0x1a2638
-    );
-
-
-    /*
-        Three.js GridHelper is horizontal.
-
-        We use:
-        X = world X
-        Y = world Z
-        Z = world Y
-    */
-
-    gridGroup.add(grid);
-
-    scene.add(gridGroup);
 }
 
 
-/* =========================================================
-   CONVERT GRAPH COORDINATES
-========================================================= */
+// ============================================================
+// GRAPH COORDINATE CONVERSION
+// ============================================================
+//
+// Math:
+//
+// X → Three.js X
+// Y → Three.js Z
+// Z → Three.js Y
+//
+// This makes mathematical Z point upward.
+// ============================================================
 
-/*
-    Mathematics:
-
-        x → world X
-        y → world Z
-        z → world Y
-
-    This makes the mathematical Z axis
-    point upward in the 3D scene.
-*/
-
-function graphToWorld(x, y, z) {
+function toWorld(x, y, z) {
 
     return new THREE.Vector3(
         x,
         z,
         y
     );
+
 }
 
 
-/* =========================================================
-   COMPILE EQUATION
-========================================================= */
+// ============================================================
+// GET EQUATION
+// ============================================================
 
-function compileGraphEquation(expression) {
+function cleanEquation(expression) {
 
-    try {
+    expression =
+        expression.trim();
 
-        return math.compile(
-            expression
-        );
 
-    } catch (error) {
+    // Remove "z =" if user typed it
 
-        throw new Error(
-            "Invalid mathematical expression."
-        );
+    if (
+        expression
+            .toLowerCase()
+            .startsWith("z=")
+    ) {
+
+        expression =
+            expression.substring(2)
+                .trim();
 
     }
 
+
+    return expression;
+
 }
 
 
-/* =========================================================
-   CALCULATE Z
-========================================================= */
+// ============================================================
+// CALCULATE Z
+// ============================================================
 
 function calculateZ(x, y) {
 
@@ -415,12 +464,11 @@ function calculateZ(x, y) {
         }
 
 
-        /*
-            Prevent extremely large values
-            from destroying the camera.
-        */
+        // Ignore absurd values
 
-        if (Math.abs(result) > 1000) {
+        if (
+            Math.abs(result) > 100
+        ) {
 
             return null;
 
@@ -438,40 +486,36 @@ function calculateZ(x, y) {
 }
 
 
-/* =========================================================
-   BUILD GRAPH DATA
-========================================================= */
+// ============================================================
+// BUILD GRAPH DATA
+// ============================================================
 
-function buildGraphData() {
+function buildGraph() {
 
     const xmin =
-        parseFloat(xminInput.value);
-
-    const xmax =
-        parseFloat(xmaxInput.value);
-
-    const ymin =
-        parseFloat(yminInput.value);
-
-    const ymax =
-        parseFloat(ymaxInput.value);
-
-    const resolution =
-        parseInt(resolutionInput.value);
-
-
-    if (
-        !Number.isFinite(xmin) ||
-        !Number.isFinite(xmax) ||
-        !Number.isFinite(ymin) ||
-        !Number.isFinite(ymax)
-    ) {
-
-        throw new Error(
-            "Please enter valid graph ranges."
+        parseFloat(
+            xminInput.value
         );
 
-    }
+    const xmax =
+        parseFloat(
+            xmaxInput.value
+        );
+
+    const ymin =
+        parseFloat(
+            yminInput.value
+        );
+
+    const ymax =
+        parseFloat(
+            ymaxInput.value
+        );
+
+    const resolution =
+        parseInt(
+            resolutionInput.value
+        );
 
 
     if (
@@ -480,27 +524,28 @@ function buildGraphData() {
     ) {
 
         throw new Error(
-            "Minimum values must be smaller than maximum values."
+            "Minimum must be smaller than maximum."
         );
 
     }
 
 
-    graphSettings = {
-        xmin,
-        xmax,
-        ymin,
-        ymax,
-        resolution
-    };
-
-
-    graphData = [];
+    graphRows = [];
 
     totalPoints = 0;
 
+    generatedPoints = 0;
 
-    for (let row = 0; row <= resolution; row++) {
+
+    // --------------------------------------------------------
+    // CALCULATE EVERY POINT
+    // --------------------------------------------------------
+
+    for (
+        let row = 0;
+        row <= resolution;
+        row++
+    ) {
 
         const y =
             ymin +
@@ -511,7 +556,11 @@ function buildGraphData() {
         const points = [];
 
 
-        for (let col = 0; col <= resolution; col++) {
+        for (
+            let col = 0;
+            col <= resolution;
+            col++
+        ) {
 
             const x =
                 xmin +
@@ -520,13 +569,16 @@ function buildGraphData() {
 
 
             const z =
-                calculateZ(x, y);
+                calculateZ(
+                    x,
+                    y
+                );
 
 
             points.push({
-                x,
-                y,
-                z
+                x: x,
+                y: y,
+                z: z
             });
 
 
@@ -539,94 +591,117 @@ function buildGraphData() {
         }
 
 
-        graphData.push(points);
+        graphRows.push(
+            points
+        );
 
     }
 
 
-    totalRows = graphData.length;
+    totalRows =
+        graphRows.length;
 
 }
 
 
-/* =========================================================
-   CREATE SURFACE
-========================================================= */
+// ============================================================
+// CREATE GRAPH GROUP
+// ============================================================
 
-function createSurface() {
+function clearGraph() {
 
-    if (surfaceGroup) {
+    if (graphGroup) {
 
-        scene.remove(surfaceGroup);
+        scene.remove(
+            graphGroup
+        );
+
+
+        graphGroup.traverse(
+            object => {
+
+                if (object.geometry) {
+
+                    object.geometry.dispose();
+
+                }
+
+                if (object.material) {
+
+                    object.material.dispose();
+
+                }
+
+            }
+        );
 
     }
 
 
-    surfaceGroup =
+    graphGroup =
         new THREE.Group();
 
 
-    scene.add(surfaceGroup);
+    scene.add(
+        graphGroup
+    );
 
 }
 
 
-/* =========================================================
-   DRAW ONE ROW
-========================================================= */
+// ============================================================
+// DRAW ONE ROW
+// ============================================================
 
 function drawRow(rowIndex) {
 
-    if (
-        rowIndex < 0 ||
-        rowIndex >= graphData.length
-    ) {
+    const row =
+        graphRows[rowIndex];
+
+
+    if (!row) {
 
         return;
 
     }
 
 
-    const row =
-        graphData[rowIndex];
-
-
-    const validPoints =
+    const valid =
         row.filter(
-            point =>
-                point.z !== null
+            p => p.z !== null
         );
 
 
-    if (validPoints.length < 2) {
+    if (valid.length < 2) {
 
         return;
 
     }
 
 
-    /*
-        DRAW THE ROW AS A LINE
-    */
+    // --------------------------------------------------------
+    // DRAW ROW LINE
+    // --------------------------------------------------------
 
     const linePoints =
-        validPoints.map(point =>
-
-            graphToWorld(
-                point.x,
-                point.y,
-                point.z
-            )
-
+        valid.map(
+            p =>
+                toWorld(
+                    p.x,
+                    p.y,
+                    p.z
+                )
         );
 
 
-    const geometry =
+    const lineGeometry =
         new THREE.BufferGeometry()
-            .setFromPoints(linePoints);
+            .setFromPoints(
+                linePoints
+            );
 
 
-    const material =
+    const lineMaterial =
         new THREE.LineBasicMaterial({
             color: 0x5ee7ff
         });
@@ -634,180 +709,127 @@ function drawRow(rowIndex) {
 
     const line =
         new THREE.Line(
+            lineGeometry,
+            lineMaterial
+        );
+
+
+    graphGroup.add(
+        line
+    );
+
+
+    // --------------------------------------------------------
+    // CONNECT WITH PREVIOUS ROW
+    // --------------------------------------------------------
+
+    if (rowIndex === 0) {
+
+        return;
+
+    }
+
+
+    const previous =
+        graphRows[
+            rowIndex - 1
+        ];
+
+
+    const vertices = [];
+
+
+    for (
+        let col = 0;
+        col < row.length;
+        col++
+    ) {
+
+        const current =
+            row[col];
+
+        const old =
+            previous[col];
+
+
+        if (
+            !current ||
+            !old ||
+            current.z === null ||
+            old.z === null
+        ) {
+
+            continue;
+
+        }
+
+
+        vertices.push(
+            toWorld(
+                current.x,
+                current.y,
+                current.z
+            )
+        );
+
+
+        vertices.push(
+            toWorld(
+                old.x,
+                old.y,
+                old.z
+            )
+        );
+
+    }
+
+
+    if (vertices.length === 0) {
+
+        return;
+
+    }
+
+
+    const geometry =
+        new THREE.BufferGeometry()
+            .setFromPoints(
+                vertices
+            );
+
+
+    const material =
+        new THREE.LineBasicMaterial({
+            color: 0x42688f,
+            transparent: true,
+            opacity: 0.7
+        });
+
+
+    const connections =
+        new THREE.LineSegments(
             geometry,
             material
         );
 
 
-    surfaceGroup.add(line);
-
-
-    /*
-        CONNECT THIS ROW TO THE PREVIOUS ROW
-        TO CREATE THE SURFACE.
-    */
-
-    if (rowIndex > 0) {
-
-        const previousRow =
-            graphData[rowIndex - 1];
-
-
-        const segments = [];
-
-
-        for (
-            let col = 0;
-            col < row.length - 1;
-            col++
-        ) {
-
-            const a =
-                row[col];
-
-            const b =
-                row[col + 1];
-
-            const c =
-                previousRow[col];
-
-            const d =
-                previousRow[col + 1];
-
-
-            if (
-                a.z === null ||
-                b.z === null ||
-                c.z === null ||
-                d.z === null
-            ) {
-
-                continue;
-
-            }
-
-
-            /*
-                Triangle 1
-            */
-
-            segments.push(
-                graphToWorld(
-                    a.x,
-                    a.y,
-                    a.z
-                )
-            );
-
-            segments.push(
-                graphToWorld(
-                    b.x,
-                    b.y,
-                    b.z
-                );
-
-            );
-
-
-            /*
-                Triangle 2
-            */
-
-            segments.push(
-                graphToWorld(
-                    b.x,
-                    b.y,
-                    b.z
-                )
-            );
-
-            segments.push(
-                graphToWorld(
-                    d.x,
-                    d.y,
-                    d.z
-                )
-            );
-
-
-            segments.push(
-                graphToWorld(
-                    d.x,
-                    d.y,
-                    d.z
-                )
-            );
-
-            segments.push(
-                graphToWorld(
-                    c.x,
-                    c.y,
-                    c.z
-                )
-            );
-
-
-            segments.push(
-                graphToWorld(
-                    c.x,
-                    c.y,
-                    c.z
-                )
-            );
-
-            segments.push(
-                graphToWorld(
-                    a.x,
-                    a.y,
-                    a.z
-                )
-            );
-
-        }
-
-
-        if (segments.length > 0) {
-
-            const surfaceGeometry =
-                new THREE.BufferGeometry()
-                    .setFromPoints(
-                        segments
-                    );
-
-
-            const surfaceMaterial =
-                new THREE.LineBasicMaterial({
-                    color: 0x4f78a8,
-                    transparent: true,
-                    opacity: 0.35
-                });
-
-
-            const surfaceLines =
-                new THREE.LineSegments(
-                    surfaceGeometry,
-                    surfaceMaterial
-                );
-
-
-            surfaceGroup.add(
-                surfaceLines
-            );
-
-        }
-
-    }
+    graphGroup.add(
+        connections
+    );
 
 }
 
 
-/* =========================================================
-   DRAW GRAPH PROGRESSIVELY
-========================================================= */
+// ============================================================
+// ANIMATE GRAPH
+// ============================================================
 
-function animateGraph() {
+function updateGraphAnimation() {
 
-    if (!isRunning || isPaused) {
+    if (
+        !running ||
+        paused
+    ) {
 
         return;
 
@@ -815,20 +837,14 @@ function animateGraph() {
 
 
     const speed =
-        parseInt(speedInput.value);
-
-
-    /*
-        Higher speed = more rows per frame.
-    */
-
-    const rowsPerFrame =
-        speed;
+        parseInt(
+            speedInput.value
+        );
 
 
     for (
         let i = 0;
-        i < rowsPerFrame;
+        i < speed;
         i++
     ) {
 
@@ -836,42 +852,48 @@ function animateGraph() {
             currentRow >= totalRows
         ) {
 
-            finishGraph();
+            finish();
 
             return;
 
         }
 
 
-        drawRow(currentRow);
+        drawRow(
+            currentRow
+        );
 
 
         const row =
-            graphData[currentRow];
+            graphRows[
+                currentRow
+            ];
 
 
-        /*
-            Find latest valid point.
-        */
+        // Update live coordinates
 
         for (
-            let j = 0;
-            j < row.length;
-            j++
+            let i = row.length - 1;
+            i >= 0;
+            i--
         ) {
 
-            const point = row[j];
+            const p =
+                row[i];
 
-            if (point.z !== null) {
+
+            if (
+                p.z !== null
+            ) {
 
                 xValue.textContent =
-                    point.x.toFixed(2);
+                    p.x.toFixed(2);
 
                 yValue.textContent =
-                    point.y.toFixed(2);
+                    p.y.toFixed(2);
 
                 zValue.textContent =
-                    point.z.toFixed(2);
+                    p.z.toFixed(2);
 
                 break;
 
@@ -880,10 +902,9 @@ function animateGraph() {
         }
 
 
-        currentPoint +=
+        generatedPoints +=
             row.filter(
-                point =>
-                    point.z !== null
+                p => p.z !== null
             ).length;
 
 
@@ -906,78 +927,16 @@ function animateGraph() {
 
 
         pointsText.textContent =
-            currentPoint.toLocaleString();
+            generatedPoints.toLocaleString();
 
     }
 
 }
 
 
-/* =========================================================
-   FINISH
-========================================================= */
-
-function finishGraph() {
-
-    isRunning = false;
-
-    isPaused = false;
-
-    isFinished = true;
-
-
-    statusText.textContent =
-        "Complete";
-
-    statusDot.style.background =
-        "#45e08a";
-
-    statusDot.style.boxShadow =
-        "0 0 12px #45e08a";
-
-
-    progressText.textContent =
-        "100%";
-
-    progressFill.style.width =
-        "100%";
-
-
-    cancelAnimationFrame(
-        animationId
-    );
-
-}
-
-
-/* =========================================================
-   MAIN ANIMATION LOOP
-========================================================= */
-
-function animate() {
-
-    animationId =
-        requestAnimationFrame(
-            animate
-        );
-
-
-    controls.update();
-
-    animateGraph();
-
-
-    renderer.render(
-        scene,
-        camera
-    );
-
-}
-
-
-/* =========================================================
-   RUN GRAPH
-========================================================= */
+// ============================================================
+// RUN
+// ============================================================
 
 function runGraph() {
 
@@ -986,95 +945,119 @@ function runGraph() {
 
     try {
 
-        const expression =
-            equationInput.value.trim();
+        let expression =
+            equationInput.value;
+
+
+        expression =
+            cleanEquation(
+                expression
+            );
 
 
         if (!expression) {
 
             throw new Error(
-                "Enter an equation first."
+                "Please enter an equation."
             );
 
         }
 
 
-        /*
-            Allow users to enter:
-                z = x^2 + y^2
+        // Compile equation
 
-            or:
-                x^2 + y^2
-        */
+        compiledEquation =
+            math.compile(
+                expression
+            );
 
-        let cleanExpression =
-            expression;
+
+        // Test equation
+
+        const test =
+            compiledEquation.evaluate({
+                x: 1,
+                y: 1
+            });
 
 
         if (
-            cleanExpression
-                .toLowerCase()
-                .startsWith("z=")
+            typeof test !== "number" ||
+            !Number.isFinite(test)
         ) {
 
-            cleanExpression =
-                cleanExpression
-                    .substring(2)
-                    .trim();
+            throw new Error(
+                "The equation must produce a numerical Z value."
+            );
 
         }
 
 
-        compiledEquation =
-            compileGraphEquation(
-                cleanExpression
-            );
+        // Build graph
+
+        buildGraph();
 
 
-        buildGraphData();
+        // Clear previous graph
 
-        createSurface();
+        clearGraph();
 
 
         currentRow = 0;
 
-        currentPoint = 0;
+        generatedPoints = 0;
 
-        isRunning = true;
+        running = true;
 
-        isPaused = false;
-
-        isFinished = false;
+        paused = false;
 
 
         displayEquation.textContent =
             "z = " +
             formatEquation(
-                cleanExpression
+                expression
             );
 
 
         progressText.textContent =
             "0%";
 
+
         progressFill.style.width =
             "0%";
+
 
         pointsText.textContent =
             "0";
 
 
+        pauseBtn.textContent =
+            "⏸ Pause";
+
+
         statusText.textContent =
             "Generating...";
 
+
         statusDot.style.background =
             "#5ee7ff";
+
 
         statusDot.style.boxShadow =
             "0 0 12px #5ee7ff";
 
 
+        console.log(
+            "Graph generation started:",
+            expression
+        );
+
     } catch (error) {
+
+        console.error(
+            error
+        );
+
 
         showError(
             error.message
@@ -1085,32 +1068,36 @@ function runGraph() {
 }
 
 
-/* =========================================================
-   PAUSE
-========================================================= */
+// ============================================================
+// PAUSE / RESUME
+// ============================================================
 
-function pauseGraph() {
+function togglePause() {
 
-    if (!isRunning) {
+    if (!running) {
 
         return;
 
     }
 
 
-    isPaused = !isPaused;
+    paused =
+        !paused;
 
 
-    if (isPaused) {
+    if (paused) {
 
         pauseBtn.textContent =
             "▶ Resume";
 
+
         statusText.textContent =
             "Paused";
 
+
         statusDot.style.background =
             "#ffc857";
+
 
         statusDot.style.boxShadow =
             "0 0 12px #ffc857";
@@ -1120,11 +1107,14 @@ function pauseGraph() {
         pauseBtn.textContent =
             "⏸ Pause";
 
+
         statusText.textContent =
             "Generating...";
 
+
         statusDot.style.background =
             "#5ee7ff";
+
 
         statusDot.style.boxShadow =
             "0 0 12px #5ee7ff";
@@ -1134,40 +1124,31 @@ function pauseGraph() {
 }
 
 
-/* =========================================================
-   RESET
-========================================================= */
+// ============================================================
+// RESET
+// ============================================================
 
 function resetGraph() {
 
-    isRunning = false;
+    running = false;
 
-    isPaused = false;
-
-    isFinished = false;
-
+    paused = false;
 
     currentRow = 0;
 
-    currentPoint = 0;
+    generatedPoints = 0;
 
 
-    if (surfaceGroup) {
-
-        scene.remove(
-            surfaceGroup
-        );
-
-        surfaceGroup = null;
-
-    }
+    clearGraph();
 
 
     progressText.textContent =
         "0%";
 
+
     progressFill.style.width =
         "0%";
+
 
     pointsText.textContent =
         "0";
@@ -1176,8 +1157,10 @@ function resetGraph() {
     xValue.textContent =
         "0.00";
 
+
     yValue.textContent =
         "0.00";
+
 
     zValue.textContent =
         "0.00";
@@ -1190,8 +1173,10 @@ function resetGraph() {
     statusText.textContent =
         "Ready";
 
+
     statusDot.style.background =
         "#45e08a";
+
 
     statusDot.style.boxShadow =
         "0 0 12px #45e08a";
@@ -1199,9 +1184,42 @@ function resetGraph() {
 }
 
 
-/* =========================================================
-   FORMAT EQUATION
-========================================================= */
+// ============================================================
+// FINISH
+// ============================================================
+
+function finish() {
+
+    running = false;
+
+    paused = false;
+
+
+    statusText.textContent =
+        "Complete";
+
+
+    statusDot.style.background =
+        "#45e08a";
+
+
+    statusDot.style.boxShadow =
+        "0 0 12px #45e08a";
+
+
+    progressText.textContent =
+        "100%";
+
+
+    progressFill.style.width =
+        "100%";
+
+}
+
+
+// ============================================================
+// FORMAT EQUATION
+// ============================================================
 
 function formatEquation(expression) {
 
@@ -1213,14 +1231,15 @@ function formatEquation(expression) {
 }
 
 
-/* =========================================================
-   ERROR HANDLING
-========================================================= */
+// ============================================================
+// ERROR
+// ============================================================
 
 function showError(message) {
 
     errorMessage.textContent =
         message;
+
 
     errorMessage.style.display =
         "block";
@@ -1229,18 +1248,13 @@ function showError(message) {
     statusText.textContent =
         "Error";
 
+
     statusDot.style.background =
         "#ff5968";
 
+
     statusDot.style.boxShadow =
         "0 0 12px #ff5968";
-
-
-    setTimeout(() => {
-
-        hideError();
-
-    }, 4000);
 
 }
 
@@ -1253,13 +1267,16 @@ function hideError() {
 }
 
 
-/* =========================================================
-   RESIZE
-========================================================= */
+// ============================================================
+// RESIZE
+// ============================================================
 
-function resizeRenderer() {
+function resize() {
 
-    if (!renderer) {
+    if (
+        !renderer ||
+        !camera
+    ) {
 
         return;
 
@@ -1269,12 +1286,14 @@ function resizeRenderer() {
     const width =
         graphContainer.clientWidth;
 
+
     const height =
         graphContainer.clientHeight;
 
 
     camera.aspect =
         width / height;
+
 
     camera.updateProjectionMatrix();
 
@@ -1287,9 +1306,38 @@ function resizeRenderer() {
 }
 
 
-/* =========================================================
-   UI EVENTS
-========================================================= */
+// ============================================================
+// RENDER LOOP
+// ============================================================
+
+function render() {
+
+    requestAnimationFrame(
+        render
+    );
+
+
+    updateGraphAnimation();
+
+
+    if (controls) {
+
+        controls.update();
+
+    }
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+
+}
+
+
+// ============================================================
+// UI EVENTS
+// ============================================================
 
 runBtn.addEventListener(
     "click",
@@ -1299,7 +1347,7 @@ runBtn.addEventListener(
 
 pauseBtn.addEventListener(
     "click",
-    pauseGraph
+    togglePause
 );
 
 
@@ -1309,11 +1357,9 @@ resetBtn.addEventListener(
 );
 
 
-/* Enter key */
-
 equationInput.addEventListener(
     "keydown",
-    event => {
+    function(event) {
 
         if (
             event.key === "Enter"
@@ -1327,11 +1373,9 @@ equationInput.addEventListener(
 );
 
 
-/* Resolution */
-
 resolutionInput.addEventListener(
     "input",
-    () => {
+    function() {
 
         resolutionValue.textContent =
             resolutionInput.value;
@@ -1340,11 +1384,9 @@ resolutionInput.addEventListener(
 );
 
 
-/* Speed */
-
 speedInput.addEventListener(
     "input",
-    () => {
+    function() {
 
         speedValue.textContent =
             speedInput.value + "x";
@@ -1353,37 +1395,36 @@ speedInput.addEventListener(
 );
 
 
-/* Example equations */
+// ============================================================
+// EXAMPLE BUTTONS
+// ============================================================
 
 document
     .querySelectorAll(
         ".examples button"
     )
-    .forEach(button => {
+    .forEach(
+        function(button) {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                function() {
 
-                equationInput.value =
-                    button.dataset.equation;
-
-                runGraph();
-
-            }
-        );
-
-    });
+                    equationInput.value =
+                        button.dataset.equation;
 
 
-/* =========================================================
-   START APPLICATION
-========================================================= */
+                    runGraph();
 
-initThree();
+                }
+            );
 
-/*
-    Do not automatically generate the graph.
-    The user presses Run.
-*/
-```
+        }
+    );
+
+
+// ============================================================
+// START
+// ============================================================
+
+init();
